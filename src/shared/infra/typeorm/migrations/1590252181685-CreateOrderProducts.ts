@@ -23,6 +23,16 @@ export default class CreateOrderProducts1590252181685
             type: 'uuid',
           },
           {
+            name: 'price',
+            type: 'decimal',
+            precision: 10,
+            scale: 2,
+          },
+          {
+            name: 'quantity',
+            type: 'integer',
+          },
+          {
             name: 'created_at',
             type: 'timestamp',
             default: 'now()',

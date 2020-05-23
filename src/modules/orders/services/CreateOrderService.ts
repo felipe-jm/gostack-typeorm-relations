@@ -30,7 +30,69 @@ class CreateOrderService {
     private customersRepository: ICustomersRepository,
   ) {}
 
-  public async execute({ customer_id, products }: IRequest): Promise<Order> {}
+  public async execute({ customer_id, products }: IRequest): Promise<Order> {
+    const customer = await this.customersRepository.findById(customer_id);
+
+    if (!customer) {
+      throw new AppError('This customer does not exists');
+    }
+
+    const productsIds = products.map(product => ({
+      id: product.id,
+    }));
+
+    const orderedProducts = await this.productsRepository.findAllById(
+      productsIds,
+    );
+
+    const formattedProducts = products.map(product => {
+      const orderedProduct = orderedProducts.find(
+        foundProduct => foundProduct.id === product.id,
+      );
+
+      if (!orderedProduct) {
+        throw new AppError('Product not found');
+      }
+
+      if (product.quantity > orderedProduct.quantity) {
+        throw new AppError(
+          `Not enough quantity for product ${orderedProduct.name}`,
+        );
+      }
+
+      return {
+        product_id: orderedProduct.id,
+        price: orderedProduct.price,
+        quantity: product.quantity,
+      };
+    });
+
+    const updatedQuantities = formattedProducts.map(formattedProduct => {
+      const orderedProduct = orderedProducts.find(
+        foundProduct => foundProduct.id === formattedProduct.product_id,
+      );
+
+      if (!orderedProduct) {
+        throw new AppError('Product not found');
+      }
+
+      orderedProduct.quantity -= formattedProduct.quantity;
+
+      return {
+        id: orderedProduct.id,
+        quantity: orderedProduct.quantity,
+      };
+    });
+
+    const order = await this.ordersRepository.create({
+      customer,
+      products: formattedProducts,
+    });
+
+    await this.productsRepository.updateQuantity(updatedQuantities);
+
+    return order;
+  }
 }
 
 export default CreateOrderService;
